@@ -4,11 +4,11 @@ import { ApiError, api } from "./api";
 import { FilterBar } from "./components/FilterBar";
 import { HouseCard } from "./components/HouseCard";
 import { HouseDetail } from "./components/HouseDetail";
-import { HouseForm } from "./components/HouseForm";
+import { HouseForm, type HouseSubmitOptions } from "./components/HouseForm";
 import { LoginScreen } from "./components/LoginScreen";
 import { Modal } from "./components/Modal";
 import { applyFilters, collectTags, defaultFilters, type Filters } from "./filters";
-import { messageFromError } from "./utils";
+import { importErrorMessage, messageFromError } from "./utils";
 
 type AuthState = "checking" | "authenticated" | "anonymous";
 type FormState = { mode: "create" } | { mode: "edit"; house: House } | null;
@@ -89,11 +89,30 @@ export default function App() {
     setForm(null);
   }
 
-  async function handleCreate(payload: HousePayload) {
+  async function handleCreate(payload: HousePayload, options: HouseSubmitOptions) {
     const created = await api.createHouse(payload);
     setHouses((current) => [created, ...current]);
     setForm(null);
     setSelectedId(created.id);
+    if (options.importPhotos) {
+      try {
+        await importFromListing(created.id);
+      } catch (err) {
+        setError(importErrorMessage(err));
+      }
+    }
+  }
+
+  async function importFromListing(houseId: string): Promise<number> {
+    const result = await api.importPhotos(houseId);
+    replaceHouse(result.house);
+    return result.imported;
+  }
+
+  async function importFromUrls(houseId: string, urls: string[]): Promise<number> {
+    const result = await api.importPhotosFromUrls(houseId, urls);
+    replaceHouse(result.house);
+    return result.imported;
   }
 
   async function handleUpdate(payload: HousePayload) {
@@ -190,6 +209,8 @@ export default function App() {
             onEdit={() => setForm({ mode: "edit", house: selectedHouse })}
             onDelete={() => void handleDelete(selectedHouse)}
             onError={setError}
+            onImportFromListing={() => importFromListing(selectedHouse.id)}
+            onImportFromUrls={(urls) => importFromUrls(selectedHouse.id, urls)}
           />
         </Modal>
       )}
@@ -204,6 +225,7 @@ export default function App() {
             initial={form.mode === "create" ? emptyPayload() : payloadFromHouse(form.house)}
             tagSuggestions={allTags}
             submitLabel={form.mode === "create" ? "Aggiungi" : "Salva modifiche"}
+            showImportOption={form.mode === "create"}
             onSubmit={form.mode === "create" ? handleCreate : handleUpdate}
             onCancel={() => setForm(null)}
           />

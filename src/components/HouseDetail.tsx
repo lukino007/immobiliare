@@ -1,7 +1,16 @@
 import { useState, type ChangeEvent } from "react";
 import { HOUSE_STATUSES, statusInfo, type House, type HouseStatus } from "../../shared/types";
 import { api, photoUrl } from "../api";
-import { formatDateTime, formatPrice, formatScore, messageFromError, preparePhoto, scoreTone } from "../utils";
+import { bookmarkletHref } from "../bookmarklet";
+import {
+  formatDateTime,
+  formatPrice,
+  formatScore,
+  importErrorMessage,
+  messageFromError,
+  preparePhoto,
+  scoreTone,
+} from "../utils";
 
 interface HouseDetailProps {
   house: House;
@@ -9,17 +18,30 @@ interface HouseDetailProps {
   onEdit: () => void;
   onDelete: () => void;
   onError: (message: string) => void;
+  onImportFromListing: () => Promise<number>;
+  onImportFromUrls: (urls: string[]) => Promise<number>;
 }
 
 function formatNumber(value: number | null, suffix = ""): string {
   return value === null ? "—" : `${value}${suffix}`;
 }
 
-export function HouseDetail({ house, onHouseChange, onEdit, onDelete, onError }: HouseDetailProps) {
+export function HouseDetail({
+  house,
+  onHouseChange,
+  onEdit,
+  onDelete,
+  onError,
+  onImportFromListing,
+  onImportFromUrls,
+}: HouseDetailProps) {
   const [notes, setNotes] = useState(house.visitNotes);
   const [commentDraft, setCommentDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [urlsText, setUrlsText] = useState("");
+  const [importStatus, setImportStatus] = useState<string | null>(null);
   const status = statusInfo(house.status);
   const notesDirty = notes !== house.visitNotes;
 
@@ -76,6 +98,28 @@ export function HouseDetail({ house, onHouseChange, onEdit, onDelete, onError }:
     } finally {
       setBusy(false);
     }
+  }
+
+  async function runImport(action: () => Promise<number>) {
+    setBusy(true);
+    setImportStatus("Importazione in corso…");
+    try {
+      const imported = await action();
+      setImportStatus(imported > 0 ? `Importate ${imported} foto dall'annuncio.` : "Nessuna nuova foto trovata.");
+    } catch (error) {
+      setImportStatus(null);
+      onError(importErrorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleUrlsImport() {
+    const urls = urlsText
+      .split(/\s+/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+    void runImport(() => onImportFromUrls(urls));
   }
 
   return (
@@ -162,6 +206,49 @@ export function HouseDetail({ house, onHouseChange, onEdit, onDelete, onError }:
 
       <section className="detail-section">
         <h4>Foto ({house.photos.length})</h4>
+        <div className="photo-toolbar">
+          <button
+            type="button"
+            className="button ghost small"
+            disabled={busy}
+            onClick={() => void runImport(onImportFromListing)}
+          >
+            Importa dall'annuncio
+          </button>
+          <button type="button" className="button ghost small" onClick={() => setImportOpen((open) => !open)}>
+            {importOpen ? "Chiudi incolla link" : "Incolla link foto"}
+          </button>
+        </div>
+        {importOpen && (
+          <div className="import-box">
+            <p className="muted">
+              Se il sito blocca il download automatico: apri l'annuncio nel browser, trascina il pulsante qui
+              sotto nella barra dei preferiti e cliccalo per copiare i link delle foto, poi incollali nel
+              campo e premi &quot;Importa link&quot;.
+            </p>
+            <div>
+              <a className="button ghost small" href={bookmarkletHref}>
+                Copia foto annuncio
+              </a>
+            </div>
+            <textarea
+              rows={4}
+              value={urlsText}
+              onChange={(event) => setUrlsText(event.target.value)}
+              placeholder={"https://pwm.im-cdn.it/image/123/xxl.jpg\nhttps://pwm.im-cdn.it/image/124/xxl.jpg"}
+            />
+            <div className="section-actions">
+              <button
+                type="button"
+                className="button primary small"
+                disabled={busy || !urlsText.trim()}
+                onClick={handleUrlsImport}
+              >
+                Importa link
+              </button>
+            </div>
+          </div>
+        )}
         <div className="photo-grid">
           {house.photos.map((photo) => (
             <figure className="photo-item" key={photo.id}>
@@ -182,6 +269,7 @@ export function HouseDetail({ house, onHouseChange, onEdit, onDelete, onError }:
           </label>
         </div>
         {uploadProgress && <p className="muted">{uploadProgress}</p>}
+        {importStatus && <p className="muted">{importStatus}</p>}
       </section>
 
       <section className="detail-section">

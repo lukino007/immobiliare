@@ -78,16 +78,23 @@ function sanitizeFilename(name: string): string {
   return cleaned || "photo";
 }
 
-export async function addPhoto(houseId: string, file: File): Promise<House | null> {
+export async function addPhoto(houseId: string, file: File, sourceUrl?: string): Promise<House | null> {
   const house = await getHouse(houseId);
   if (!house) return null;
   const id = randomUUID();
   const uploadedAt = new Date().toISOString();
   const filename = sanitizeFilename(file.name);
   await photosStore().set(photoKey(houseId, id), await file.arrayBuffer(), {
-    metadata: { filename, contentType: file.type, size: file.size, uploadedAt },
+    metadata: { filename, contentType: file.type, size: file.size, uploadedAt, ...(sourceUrl ? { sourceUrl } : {}) },
   });
-  const photo: PhotoMeta = { id, filename, contentType: file.type, size: file.size, uploadedAt };
+  const photo: PhotoMeta = {
+    id,
+    filename,
+    contentType: file.type,
+    size: file.size,
+    uploadedAt,
+    ...(sourceUrl ? { sourceUrl } : {}),
+  };
   const updated: House = { ...house, photos: [...house.photos, photo], updatedAt: uploadedAt };
   await housesStore().setJSON(houseKey(houseId), updated);
   return updated;

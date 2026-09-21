@@ -1,3 +1,5 @@
+import { ApiError } from "./api";
+
 const priceFormatter = new Intl.NumberFormat("it-IT", {
   style: "currency",
   currency: "EUR",
@@ -37,6 +39,17 @@ export function formatScore(score: number | null): string {
 export function messageFromError(error: unknown): string {
   if (error instanceof Error && error.message) return error.message;
   return "Errore imprevisto";
+}
+
+export function importErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.code === "listing_blocked") {
+      return 'Il sito dell\'annuncio blocca il download automatico. Usa "Incolla link foto".';
+    }
+    if (error.code === "no_photos") return "Nessuna foto trovata nell'annuncio.";
+    if (error.code === "download_failed") return "Non è stato possibile scaricare le foto.";
+  }
+  return messageFromError(error);
 }
 
 const MAX_PHOTO_DIMENSION = 1600;

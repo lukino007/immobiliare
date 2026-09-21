@@ -1,12 +1,14 @@
-import type { House, HousePayload } from "../shared/types";
+import type { House, HousePayload, ImportResult } from "../shared/types";
 
 export class ApiError extends Error {
   readonly status: number;
+  readonly code?: string;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -19,13 +21,15 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, { credentials: "same-origin", ...init, headers });
   if (!response.ok) {
     let message = `Request failed (${response.status})`;
+    let code: string | undefined;
     try {
-      const data = (await response.json()) as { error?: unknown };
+      const data = (await response.json()) as { error?: unknown; code?: unknown };
       if (typeof data.error === "string") message = data.error;
+      if (typeof data.code === "string") code = data.code;
     } catch {
       // keep the default message when the body is not JSON
     }
-    throw new ApiError(response.status, message);
+    throw new ApiError(response.status, message, code);
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
@@ -57,6 +61,10 @@ export const api = {
       `/api/photos?houseId=${encodeURIComponent(houseId)}&photoId=${encodeURIComponent(photoId)}`,
       { method: "DELETE" },
     ),
+  importPhotos: (houseId: string) =>
+    request<ImportResult>("/api/import", { method: "POST", body: JSON.stringify({ houseId }) }),
+  importPhotosFromUrls: (houseId: string, urls: string[]) =>
+    request<ImportResult>("/api/import", { method: "POST", body: JSON.stringify({ houseId, urls }) }),
 };
 
 export const photoUrl = (houseId: string, photoId: string) =>

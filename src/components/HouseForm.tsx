@@ -3,11 +3,16 @@ import { HOUSE_STATUSES, MAX_SCORE, type HousePayload, type HouseStatus } from "
 import { messageFromError } from "../utils";
 import { TagInput } from "./TagInput";
 
+export interface HouseSubmitOptions {
+  importPhotos: boolean;
+}
+
 interface HouseFormProps {
   initial: HousePayload;
   tagSuggestions: string[];
   submitLabel: string;
-  onSubmit: (payload: HousePayload) => Promise<void>;
+  showImportOption?: boolean;
+  onSubmit: (payload: HousePayload, options: HouseSubmitOptions) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -38,7 +43,14 @@ function inputToNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function HouseForm({ initial, tagSuggestions, submitLabel, onSubmit, onCancel }: HouseFormProps) {
+export function HouseForm({
+  initial,
+  tagSuggestions,
+  submitLabel,
+  showImportOption = false,
+  onSubmit,
+  onCancel,
+}: HouseFormProps) {
   const [state, setState] = useState<FormState>({
     url: initial.url,
     title: initial.title,
@@ -56,6 +68,7 @@ export function HouseForm({ initial, tagSuggestions, submitLabel, onSubmit, onCa
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [importPhotos, setImportPhotos] = useState(true);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setState((current) => ({ ...current, [key]: value }));
@@ -85,7 +98,7 @@ export function HouseForm({ initial, tagSuggestions, submitLabel, onSubmit, onCa
       },
     };
     try {
-      await onSubmit(payload);
+      await onSubmit(payload, { importPhotos: showImportOption && importPhotos });
     } catch (err) {
       setError(messageFromError(err));
       setSaving(false);
@@ -227,6 +240,16 @@ export function HouseForm({ initial, tagSuggestions, submitLabel, onSubmit, onCa
           </label>
         </div>
       </fieldset>
+      {showImportOption && (
+        <label className="checkbox-label full">
+          <input
+            type="checkbox"
+            checked={importPhotos}
+            onChange={(event) => setImportPhotos(event.target.checked)}
+          />
+          Importa automaticamente le foto dall'annuncio
+        </label>
+      )}
       {error && <p className="error-text full">{error}</p>}
       <div className="form-actions full">
         <button type="button" className="button ghost" onClick={onCancel}>

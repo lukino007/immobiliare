@@ -9,8 +9,8 @@ export function json(data: unknown, status = 200, headers: Record<string, string
   });
 }
 
-export function apiError(status: number, message: string): Response {
-  return json({ error: message }, status);
+export function apiError(status: number, message: string, code?: string): Response {
+  return json(code ? { error: message, code } : { error: message }, status);
 }
 
 export async function readJsonBody(req: Request): Promise<Record<string, unknown> | null> {

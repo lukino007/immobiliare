@@ -10,6 +10,7 @@ comments, photos, visit notes, tags and property details. Deployed on Netlify.
 - Workflow status: to evaluate, to visit, visit scheduled, visited, favorite, offer, discarded
 - Free-form tags, visit notes and comments (with timestamps)
 - Photo gallery with client-side image resizing before upload
+- Photo import from the listing page or from a list of image URLs, with a bookmarklet helper
 - Extra details: size, rooms, floor, condo fees, year built, energy class
 - Search, filters (status, tag, price range, minimum score) and sorting
 - JSON export for backups
@@ -26,8 +27,8 @@ comments, photos, visit notes, tags and property details. Deployed on Netlify.
 
 ```
 netlify/
-  functions/        API endpoints (session, houses, photos, export)
-  lib/              Shared server code (auth, storage, validation)
+  functions/        API endpoints (session, houses, photos, import, export)
+  lib/              Shared server code (auth, storage, validation, listing scraping)
 shared/             Types shared between frontend and functions
 src/                React application
 netlify.toml        Build, dev server and redirect configuration
@@ -78,6 +79,23 @@ openssl rand -base64 48
 
 Netlify Blobs are provisioned automatically; no extra configuration is needed. Every new deploy
 keeps the existing data.
+
+## Photo import
+
+Photos can be uploaded manually, imported automatically from the listing page, or imported from a
+list of image URLs.
+
+- **Importa dall'annuncio**: a Netlify Function fetches the listing page and extracts the image
+  URLs (JSON-LD, `og:image`, known image CDNs). This works for sites without bot protection.
+  Portals such as immobiliare.it are protected by DataDome and answer with HTTP 403.
+- **Incolla link foto**: for protected sites. Drag the "Copia foto annuncio" button to the
+  bookmarks bar, open the listing, click the bookmarklet to copy the photo URLs to the clipboard,
+  then paste them into the import box. The server downloads the images from the CDN; immobiliare
+  photo URLs are upgraded to the `xxl` size.
+- Imports are idempotent: URLs already imported for a property are skipped on the next run.
+
+Use this feature for personal use only and respect the terms of service of the sites you import
+from.
 
 ## Data and backups
 

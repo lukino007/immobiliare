@@ -41,6 +41,7 @@ export interface PhotoMeta {
   contentType: string;
   size: number;
   uploadedAt: string;
+  sourceUrl?: string;
 }
 
 export interface HouseDetails {
@@ -70,6 +71,12 @@ export interface House {
 }
 
 export type HousePayload = Omit<House, "id" | "createdAt" | "updatedAt" | "photos">;
+
+export interface ImportResult {
+  house: House;
+  imported: number;
+  skipped: number;
+}
 
 export const MAX_SCORE = 10;
 
